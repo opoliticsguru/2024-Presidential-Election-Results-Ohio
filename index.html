@@ -1,0 +1,2146 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title>2024 Presidential Election In Ohio: Official Results</title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="data/County_1.js"></script>
+        <script src="data/StateHouseDistrict_2.js"></script>
+        <script src="data/StateSenateDistrict_3.js"></script>
+        <script src="data/CongressionalDistrict_4.js"></script>
+        <script src="data/City_5.js"></script>
+        <script src="data/Precinct_6.js"></script>
+        <script>
+        var highlightLayer;
+        function highlightFeature(e) {
+            highlightLayer = e.target;
+
+            if (e.target.feature.geometry.type === 'LineString' || e.target.feature.geometry.type === 'MultiLineString') {
+              highlightLayer.setStyle({
+                color: '#ffff00',
+              });
+            } else {
+              highlightLayer.setStyle({
+                fillColor: '#ffff00',
+                fillOpacity: 1
+              });
+            }
+        }
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        })
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // add class to format popup if it contains media
+		function addClassToPopupIfMedia(content, popup) {
+			var tempDiv = document.createElement('div');
+			tempDiv.innerHTML = content;
+			if (tempDiv.querySelector('td img')) {
+				popup._contentNode.classList.add('media');
+					// Delay to force the redraw
+					setTimeout(function() {
+						popup.update();
+					}, 10);
+			} else {
+				popup._contentNode.classList.remove('media');
+			}
+		}
+        var title = new L.Control({'position':'topright'});
+        title.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+        title.update = function () {
+            this._div.innerHTML = '<h2>2024 Presidential Election In Ohio: Official Results</h2>';
+        };
+        title.addTo(map);
+        var abstract = new L.Control({'position':'bottomleft'});
+        abstract.onAdd = function (map) {
+            this._div = L.DomUtil.create('div',
+            'leaflet-control abstract');
+            this._div.id = 'abstract'
+
+                abstract.show();
+                return this._div;
+            };
+            abstract.hide = function () {
+                this._div.classList.remove("abstractUncollapsed");
+                this._div.classList.add("abstract");
+                this._div.innerHTML = 'i'
+            }
+            abstract.show = function () {
+                this._div.classList.remove("abstract");
+                this._div.classList.add("abstractUncollapsed");
+                this._div.innerHTML = '-Source: Ohio Secretary of State<br /><br />-Follow: @OPoliticsGuru<br />=================================== =================================== ===================================<br />-Donald Trump/JD Vance (R): 3,180,116 (55.14%)<br />-Kamala Harris/Tim Walz (D): 2,533,699 (43.93%)<br />-Chase Oliver/Mike ter Maat (L): 28,200 (0.49%)<br />-Richard Duncan/Mitchell Preston Bupp: 12,805 (0.22%)<br />-Peter Sonski/Lauren Onak: 10,197 (0.18%)<br />-Claudia De la Cruz/Karina Garcia (WI): 1,794 (0.03%)<br />-Cornel West/Melina Adbullah (WI): 852 (0.01%)<br />-Shiva Ayyadurai/Crystal Ellis (WI): 74 (0.00%)<br />-John Cheng/Wayne Waligorski (WI): 24 (0.00%)<br />-Chris Garrity/Cody Ballard (WI): 13 (0.00%)<br />-Jay Bowman/De D Bowman (WI): 7 (0.00%<br />-Brian Kienitz/Christina Johnston (WI): 4 (0.00%)<br />-William Nalbach/Willis Butts (WI): 3 (0.00%<br />-Cherunda Fox/Harlan McVay (WI): 0 (0.00%)';
+        };
+        abstract.addTo(map);
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+            if (bounds_group.getLayers().length) {
+                map.fitBounds(bounds_group.getBounds());
+            }
+        }
+        map.createPane('pane_GoogleRoad_0');
+        map.getPane('pane_GoogleRoad_0').style.zIndex = 400;
+        var layer_GoogleRoad_0 = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleRoad_0',
+            opacity: 1.0,
+            attribution: '<a href="https://www.google.at/permissions/geoguidelines/attr-guide.html">Map data ©2015 Google</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_GoogleRoad_0;
+        map.addLayer(layer_GoogleRoad_0);
+        function pop_County_1(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">County</th>\
+                        <td>' + (feature.properties['NAME20'] !== null ? autolinker.link(feature.properties['NAME20'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Duncan</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCounty_Duncan'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCounty_Duncan'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Harris (D)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCounty_Harris (D)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCounty_Harris (D)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Oliver (L)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCounty_Oliver (L)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCounty_Oliver (L)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Sonski</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCounty_Sonski'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCounty_Sonski'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Trump (R)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCounty_Trump (R)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCounty_Trump (R)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Write-Ins</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCounty_Write-Ins'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCounty_Write-Ins'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Margin</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCounty_PresMargin'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCounty_PresMargin'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_County_1_0(feature) {
+            switch(String(feature.properties['q2wHide_Statewides Races by Level — byCounty_PresColor'])) {
+                case '#002B84':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,43,132,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#0645B4':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(6,69,180,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#1666CB':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(22,102,203,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#4389E3':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(67,137,227,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#86B6F2':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(134,182,242,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#B9D7FF':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(185,215,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D3E7FF':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(211,231,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#E1EFFF':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(225,239,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D4C4DC':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(212,196,220,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#FFDFE1':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,223,225,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#FFCCD0':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,204,208,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#F2B3BE':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(242,179,190,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#E27F90':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(226,127,144,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#CC2F4A':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(204,47,74,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D40000':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(212,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#AA0000':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(170,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#800000':
+                    return {
+                pane: 'pane_County_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(128,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_County_1');
+        map.getPane('pane_County_1').style.zIndex = 401;
+        map.getPane('pane_County_1').style['mix-blend-mode'] = 'normal';
+        var layer_County_1 = new L.geoJson(json_County_1, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_County_1',
+            layerName: 'layer_County_1',
+            pane: 'pane_County_1',
+            onEachFeature: pop_County_1,
+            style: style_County_1_0,
+        });
+        bounds_group.addLayer(layer_County_1);
+        function pop_StateHouseDistrict_2(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">HD</th>\
+                        <td>' + (feature.properties['NAME'] !== null ? autolinker.link(feature.properties['NAME'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Duncan</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateRep_Duncan'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateRep_Duncan'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Harris (D)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateRep_Harris (D)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateRep_Harris (D)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Oliver (L)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateRep_Oliver (L)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateRep_Oliver (L)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Sonski</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateRep_Sonski'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateRep_Sonski'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Trump (R)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateRep_Trump (R)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateRep_Trump (R)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Margin</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateRep_PresMargin'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateRep_PresMargin'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">State Rep D</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateRep_State Rep D'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateRep_State Rep D'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">State Rep R</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateRep_State Rep R'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateRep_State Rep R'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">State Rep Other</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateRep_State Rep Other'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateRep_State Rep Other'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">State Rep Margin</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateRep_StateRepMargin'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateRep_StateRepMargin'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">State Rep-Elect</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateRep_State Rep-Elect'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateRep_State Rep-Elect'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_StateHouseDistrict_2_0(feature) {
+            switch(String(feature.properties['q2wHide_Statewides Races by Level — byStateRep_PresColor'])) {
+                case '#002B84':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,43,132,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#0645B4':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(6,69,180,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#1666CB':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(22,102,203,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#4389E3':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(67,137,227,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#86B6F2':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(134,182,242,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#B9D7FF':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(185,215,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D3E7FF':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(211,231,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#E1EFFF':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(225,239,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D4C4DC':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(212,196,220,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#FFDFE1':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,223,225,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#FFCCD0':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,204,208,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#F2B3BE':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(242,179,190,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#E27F90':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(226,127,144,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#CC2F4A':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(204,47,74,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D40000':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(212,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#AA0000':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(170,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#800000':
+                    return {
+                pane: 'pane_StateHouseDistrict_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(128,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_StateHouseDistrict_2');
+        map.getPane('pane_StateHouseDistrict_2').style.zIndex = 402;
+        map.getPane('pane_StateHouseDistrict_2').style['mix-blend-mode'] = 'normal';
+        var layer_StateHouseDistrict_2 = new L.geoJson(json_StateHouseDistrict_2, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_StateHouseDistrict_2',
+            layerName: 'layer_StateHouseDistrict_2',
+            pane: 'pane_StateHouseDistrict_2',
+            onEachFeature: pop_StateHouseDistrict_2,
+            style: style_StateHouseDistrict_2_0,
+        });
+        bounds_group.addLayer(layer_StateHouseDistrict_2);
+        function pop_StateSenateDistrict_3(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">SD</th>\
+                        <td>' + (feature.properties['NAME'] !== null ? autolinker.link(feature.properties['NAME'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Duncan</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateSen_Duncan'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateSen_Duncan'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Harris (D)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateSen_Harris (D)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateSen_Harris (D)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Oliver (L)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateSen_Oliver (L)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateSen_Oliver (L)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Sonski</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateSen_Sonski'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateSen_Sonski'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Trump (R)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateSen_Trump (R)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateSen_Trump (R)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Margin</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateSen_PresMargin'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateSen_PresMargin'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">State Senate D</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateSen_State Senate D'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateSen_State Senate D'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">State Senate R</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateSen_State Senate R'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateSen_State Senate R'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">State Senate Margin</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateSen_StateSenMargin'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateSen_StateSenMargin'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">State Senator-Elect</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byStateSen_State Senator-Elect'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byStateSen_State Senator-Elect'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_StateSenateDistrict_3_0(feature) {
+            switch(String(feature.properties['q2wHide_Statewides Races by Level — byStateSen_PresColor'])) {
+                case '#002B84':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,43,132,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#0645B4':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(6,69,180,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#1666CB':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(22,102,203,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#4389E3':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(67,137,227,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#86B6F2':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(134,182,242,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#B9D7FF':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(185,215,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D3E7FF':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(211,231,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#E1EFFF':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(225,239,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D4C4DC':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(212,196,220,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#FFDFE1':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,223,225,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#FFCCD0':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,204,208,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#F2B3BE':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(242,179,190,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#E27F90':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(226,127,144,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#CC2F4A':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(204,47,74,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D40000':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(212,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#AA0000':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(170,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#800000':
+                    return {
+                pane: 'pane_StateSenateDistrict_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(128,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_StateSenateDistrict_3');
+        map.getPane('pane_StateSenateDistrict_3').style.zIndex = 403;
+        map.getPane('pane_StateSenateDistrict_3').style['mix-blend-mode'] = 'normal';
+        var layer_StateSenateDistrict_3 = new L.geoJson(json_StateSenateDistrict_3, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_StateSenateDistrict_3',
+            layerName: 'layer_StateSenateDistrict_3',
+            pane: 'pane_StateSenateDistrict_3',
+            onEachFeature: pop_StateSenateDistrict_3,
+            style: style_StateSenateDistrict_3_0,
+        });
+        bounds_group.addLayer(layer_StateSenateDistrict_3);
+        function pop_CongressionalDistrict_4(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">CD</th>\
+                        <td>' + (feature.properties['NAME'] !== null ? autolinker.link(feature.properties['NAME'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Duncan</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCong_Duncan'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCong_Duncan'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Harris (D)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCong_Harris (D)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCong_Harris (D)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Oliver (L)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCong_Oliver (L)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCong_Oliver (L)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Sonski</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCong_Sonski'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCong_Sonski'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Trump (R)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCong_Trump (R)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCong_Trump (R)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Margin</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCong_PresMargin'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCong_PresMargin'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Congressional D</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCong_Congressional D'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCong_Congressional D'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Congressional R</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCong_Congressional R'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCong_Congressional R'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Congressional Other</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCong_Congressional Other'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCong_Congressional Other'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Congressional Margin</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCong_CongressionalMargin'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCong_CongressionalMargin'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Representative-Elect</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCong_Representative-Elect'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCong_Representative-Elect'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_CongressionalDistrict_4_0(feature) {
+            switch(String(feature.properties['q2wHide_Statewides Races by Level — byCong_PresColor'])) {
+                case '#002B84':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,43,132,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#0645B4':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(6,69,180,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#1666CB':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(22,102,203,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#4389E3':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(67,137,227,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#86B6F2':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(134,182,242,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#B9D7FF':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(185,215,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D3E7FF':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(211,231,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#E1EFFF':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(225,239,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D4C4DC':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(212,196,220,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#FFDFE1':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,223,225,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#FFCCD0':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,204,208,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#F2B3BE':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(242,179,190,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#E27F90':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(226,127,144,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#CC2F4A':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(204,47,74,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D40000':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(212,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#AA0000':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(170,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#800000':
+                    return {
+                pane: 'pane_CongressionalDistrict_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(128,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_CongressionalDistrict_4');
+        map.getPane('pane_CongressionalDistrict_4').style.zIndex = 404;
+        map.getPane('pane_CongressionalDistrict_4').style['mix-blend-mode'] = 'normal';
+        var layer_CongressionalDistrict_4 = new L.geoJson(json_CongressionalDistrict_4, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_CongressionalDistrict_4',
+            layerName: 'layer_CongressionalDistrict_4',
+            pane: 'pane_CongressionalDistrict_4',
+            onEachFeature: pop_CongressionalDistrict_4,
+            style: style_CongressionalDistrict_4_0,
+        });
+        bounds_group.addLayer(layer_CongressionalDistrict_4);
+        function pop_City_5(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">City/Twp</th>\
+                        <td>' + (feature.properties['City_Twp'] !== null ? autolinker.link(feature.properties['City_Twp'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Duncan</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCity_Duncan'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCity_Duncan'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Harris (D)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCity_Harris (D)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCity_Harris (D)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Oliver (L)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCity_Oliver (L)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCity_Oliver (L)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Sonski</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCity_Sonski'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCity_Sonski'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Trump (R)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCity_Trump (R)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCity_Trump (R)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Margin</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byCity_PresMargin'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byCity_PresMargin'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_City_5_0(feature) {
+            switch(String(feature.properties['q2wHide_Statewides Races by Level — byCity_PresColor'])) {
+                case '#002B84':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,43,132,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#0645B4':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(6,69,180,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#1666CB':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(22,102,203,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#4389E3':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(67,137,227,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#86B6F2':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(134,182,242,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#B9D7FF':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(185,215,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D3E7FF':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(211,231,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#E1EFFF':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(225,239,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D4C4DC':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(212,196,220,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#FFDFE1':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,223,225,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#FFCCD0':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,204,208,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#F2B3BE':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(242,179,190,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#E27F90':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(226,127,144,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#CC2F4A':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(204,47,74,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D40000':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(212,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#AA0000':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(170,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#800000':
+                    return {
+                pane: 'pane_City_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(128,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_City_5');
+        map.getPane('pane_City_5').style.zIndex = 405;
+        map.getPane('pane_City_5').style['mix-blend-mode'] = 'normal';
+        var layer_City_5 = new L.geoJson(json_City_5, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_City_5',
+            layerName: 'layer_City_5',
+            pane: 'pane_City_5',
+            onEachFeature: pop_City_5,
+            style: style_City_5_0,
+        });
+        bounds_group.addLayer(layer_City_5);
+        function pop_Precinct_6(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Precinct</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byPrecinct_Precinct Name'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byPrecinct_Precinct Name'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Duncan</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byPrecinct_Duncan'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byPrecinct_Duncan'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Harris (D)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byPrecinct_Harris (D)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byPrecinct_Harris (D)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Oliver (L)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byPrecinct_Oliver (L)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byPrecinct_Oliver (L)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Sonski</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byPrecinct_Sonski'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byPrecinct_Sonski'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Trump (R)</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byPrecinct_Trump (R)'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byPrecinct_Trump (R)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Margin</th>\
+                        <td>' + (feature.properties['Statewides Races by Level — byPrecinct_PresMargin'] !== null ? autolinker.link(feature.properties['Statewides Races by Level — byPrecinct_PresMargin'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Precinct_6_0(feature) {
+            switch(String(feature.properties['q2wHide_Statewides Races by Level — byPrecinct_PresColor'])) {
+                case '#002B84':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,43,132,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#0645B4':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(6,69,180,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#1666CB':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(22,102,203,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#4389E3':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(67,137,227,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#86B6F2':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(134,182,242,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#B9D7FF':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(185,215,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D3E7FF':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(211,231,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#E1EFFF':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(225,239,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D4C4DC':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(212,196,220,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#FFDFE1':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,223,225,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#FFCCD0':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,204,208,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#F2B3BE':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(242,179,190,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#E27F90':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(226,127,144,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#CC2F4A':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(204,47,74,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#D40000':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(212,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#AA0000':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(170,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case '#800000':
+                    return {
+                pane: 'pane_Precinct_6',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(128,0,0,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_Precinct_6');
+        map.getPane('pane_Precinct_6').style.zIndex = 406;
+        map.getPane('pane_Precinct_6').style['mix-blend-mode'] = 'normal';
+        var layer_Precinct_6 = new L.geoJson(json_Precinct_6, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Precinct_6',
+            layerName: 'layer_Precinct_6',
+            pane: 'pane_Precinct_6',
+            onEachFeature: pop_Precinct_6,
+            style: style_Precinct_6_0,
+        });
+        bounds_group.addLayer(layer_Precinct_6);
+        var baseMaps = {};
+        var overlaysTree = [
+            {label: 'Precinct<br /><table><tr><td style="text-align: center;"><img src="legend/Precinct_6_D700.png" /></td><td>D+>70%</td></tr><tr><td style="text-align: center;"><img src="legend/Precinct_6_D60701.png" /></td><td>D+60-70%</td></tr><tr><td style="text-align: center;"><img src="legend/Precinct_6_D50602.png" /></td><td>D+50-60%</td></tr><tr><td style="text-align: center;"><img src="legend/Precinct_6_D40503.png" /></td><td>D+40-50%</td></tr><tr><td style="text-align: center;"><img src="legend/Precinct_6_D30404.png" /></td><td>D+30-40%</td></tr><tr><td style="text-align: center;"><img src="legend/Precinct_6_D20305.png" /></td><td>D+20-30%</td></tr><tr><td style="text-align: center;"><img src="legend/Precinct_6_D10206.png" /></td><td>D+10-20%</td></tr><tr><td style="text-align: center;"><img src="legend/Precinct_6_D0107.png" /></td><td>D+0-10%</td></tr><tr><td style="text-align: center;"><img src="legend/Precinct_6_Tie8.png" /></td><td>Tie</td></tr><tr><td style="text-align: center;"><img src="legend/Precinct_6_R0109.png" /></td><td>R+0-10%</td></tr><tr><td style="text-align: center;"><img src="legend/Precinct_6_R102010.png" /></td><td>R+10-20%</td></tr><tr><td style="text-align: center;"><img src="legend/Precinct_6_R203011.png" /></td><td>R+20-30%</td></tr><tr><td style="text-align: center;"><img src="legend/Precinct_6_R304012.png" /></td><td>R+30-40%</td></tr><tr><td style="text-align: center;"><img src="legend/Precinct_6_R405013.png" /></td><td>R+40-50%</td></tr><tr><td style="text-align: center;"><img src="legend/Precinct_6_R506014.png" /></td><td>R+50-60%</td></tr><tr><td style="text-align: center;"><img src="legend/Precinct_6_R607015.png" /></td><td>R+60-70%</td></tr><tr><td style="text-align: center;"><img src="legend/Precinct_6_R7016.png" /></td><td>R+>70%</td></tr></table>', layer: layer_Precinct_6},
+            {label: 'City<br /><table><tr><td style="text-align: center;"><img src="legend/City_5_D700.png" /></td><td>D+>70%</td></tr><tr><td style="text-align: center;"><img src="legend/City_5_D60701.png" /></td><td>D+60-70%</td></tr><tr><td style="text-align: center;"><img src="legend/City_5_D50602.png" /></td><td>D+50-60%</td></tr><tr><td style="text-align: center;"><img src="legend/City_5_D40503.png" /></td><td>D+40-50%</td></tr><tr><td style="text-align: center;"><img src="legend/City_5_D30404.png" /></td><td>D+30-40%</td></tr><tr><td style="text-align: center;"><img src="legend/City_5_D20305.png" /></td><td>D+20-30%</td></tr><tr><td style="text-align: center;"><img src="legend/City_5_D10206.png" /></td><td>D+10-20%</td></tr><tr><td style="text-align: center;"><img src="legend/City_5_D0107.png" /></td><td>D+0-10%</td></tr><tr><td style="text-align: center;"><img src="legend/City_5_Tie8.png" /></td><td>Tie</td></tr><tr><td style="text-align: center;"><img src="legend/City_5_R0109.png" /></td><td>R+0-10%</td></tr><tr><td style="text-align: center;"><img src="legend/City_5_R102010.png" /></td><td>R+10-20%</td></tr><tr><td style="text-align: center;"><img src="legend/City_5_R203011.png" /></td><td>R+20-30%</td></tr><tr><td style="text-align: center;"><img src="legend/City_5_R304012.png" /></td><td>R+30-40%</td></tr><tr><td style="text-align: center;"><img src="legend/City_5_R405013.png" /></td><td>R+40-50%</td></tr><tr><td style="text-align: center;"><img src="legend/City_5_R506014.png" /></td><td>R+50-60%</td></tr><tr><td style="text-align: center;"><img src="legend/City_5_R607015.png" /></td><td>R+60-70%</td></tr><tr><td style="text-align: center;"><img src="legend/City_5_R7016.png" /></td><td>R+>70%</td></tr></table>', layer: layer_City_5},
+            {label: 'Congressional District<br /><table><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_D700.png" /></td><td>D+>70%</td></tr><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_D60701.png" /></td><td>D+60-70%</td></tr><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_D50602.png" /></td><td>D+50-60%</td></tr><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_D40503.png" /></td><td>D+40-50%</td></tr><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_D30404.png" /></td><td>D+30-40%</td></tr><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_D20305.png" /></td><td>D+20-30%</td></tr><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_D10206.png" /></td><td>D+10-20%</td></tr><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_D0107.png" /></td><td>D+0-10%</td></tr><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_Tie8.png" /></td><td>Tie</td></tr><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_R0109.png" /></td><td>R+0-10%</td></tr><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_R102010.png" /></td><td>R+10-20%</td></tr><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_R203011.png" /></td><td>R+20-30%</td></tr><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_R304012.png" /></td><td>R+30-40%</td></tr><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_R405013.png" /></td><td>R+40-50%</td></tr><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_R506014.png" /></td><td>R+50-60%</td></tr><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_R607015.png" /></td><td>R+60-70%</td></tr><tr><td style="text-align: center;"><img src="legend/CongressionalDistrict_4_R7016.png" /></td><td>R+>70%</td></tr></table>', layer: layer_CongressionalDistrict_4},
+            {label: 'State Senate District<br /><table><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_D700.png" /></td><td>D+>70%</td></tr><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_D60701.png" /></td><td>D+60-70%</td></tr><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_D50602.png" /></td><td>D+50-60%</td></tr><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_D40503.png" /></td><td>D+40-50%</td></tr><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_D30404.png" /></td><td>D+30-40%</td></tr><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_D20305.png" /></td><td>D+20-30%</td></tr><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_D10206.png" /></td><td>D+10-20%</td></tr><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_D0107.png" /></td><td>D+0-10%</td></tr><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_Tie8.png" /></td><td>Tie</td></tr><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_R0109.png" /></td><td>R+0-10%</td></tr><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_R102010.png" /></td><td>R+10-20%</td></tr><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_R203011.png" /></td><td>R+20-30%</td></tr><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_R304012.png" /></td><td>R+30-40%</td></tr><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_R405013.png" /></td><td>R+40-50%</td></tr><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_R506014.png" /></td><td>R+50-60%</td></tr><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_R607015.png" /></td><td>R+60-70%</td></tr><tr><td style="text-align: center;"><img src="legend/StateSenateDistrict_3_R7016.png" /></td><td>R+>70%</td></tr></table>', layer: layer_StateSenateDistrict_3},
+            {label: 'State House District<br /><table><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_D700.png" /></td><td>D+>70%</td></tr><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_D60701.png" /></td><td>D+60-70%</td></tr><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_D50602.png" /></td><td>D+50-60%</td></tr><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_D40503.png" /></td><td>D+40-50%</td></tr><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_D30404.png" /></td><td>D+30-40%</td></tr><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_D20305.png" /></td><td>D+20-30%</td></tr><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_D10206.png" /></td><td>D+10-20%</td></tr><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_D0107.png" /></td><td>D+0-10%</td></tr><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_Tie8.png" /></td><td>Tie</td></tr><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_R0109.png" /></td><td>R+0-10%</td></tr><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_R102010.png" /></td><td>R+10-20%</td></tr><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_R203011.png" /></td><td>R+20-30%</td></tr><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_R304012.png" /></td><td>R+30-40%</td></tr><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_R405013.png" /></td><td>R+40-50%</td></tr><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_R506014.png" /></td><td>R+50-60%</td></tr><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_R607015.png" /></td><td>R+60-70%</td></tr><tr><td style="text-align: center;"><img src="legend/StateHouseDistrict_2_R7016.png" /></td><td>R+>70%</td></tr></table>', layer: layer_StateHouseDistrict_2},
+            {label: 'County<br /><table><tr><td style="text-align: center;"><img src="legend/County_1_D700.png" /></td><td>D+>70%</td></tr><tr><td style="text-align: center;"><img src="legend/County_1_D60701.png" /></td><td>D+60-70%</td></tr><tr><td style="text-align: center;"><img src="legend/County_1_D50602.png" /></td><td>D+50-60%</td></tr><tr><td style="text-align: center;"><img src="legend/County_1_D40503.png" /></td><td>D+40-50%</td></tr><tr><td style="text-align: center;"><img src="legend/County_1_D30404.png" /></td><td>D+30-40%</td></tr><tr><td style="text-align: center;"><img src="legend/County_1_D20305.png" /></td><td>D+20-30%</td></tr><tr><td style="text-align: center;"><img src="legend/County_1_D10206.png" /></td><td>D+10-20%</td></tr><tr><td style="text-align: center;"><img src="legend/County_1_D0107.png" /></td><td>D+0-10%</td></tr><tr><td style="text-align: center;"><img src="legend/County_1_Tie8.png" /></td><td>Tie</td></tr><tr><td style="text-align: center;"><img src="legend/County_1_R0109.png" /></td><td>R+0-10%</td></tr><tr><td style="text-align: center;"><img src="legend/County_1_R102010.png" /></td><td>R+10-20%</td></tr><tr><td style="text-align: center;"><img src="legend/County_1_R203011.png" /></td><td>R+20-30%</td></tr><tr><td style="text-align: center;"><img src="legend/County_1_R304012.png" /></td><td>R+30-40%</td></tr><tr><td style="text-align: center;"><img src="legend/County_1_R405013.png" /></td><td>R+40-50%</td></tr><tr><td style="text-align: center;"><img src="legend/County_1_R506014.png" /></td><td>R+50-60%</td></tr><tr><td style="text-align: center;"><img src="legend/County_1_R607015.png" /></td><td>R+60-70%</td></tr><tr><td style="text-align: center;"><img src="legend/County_1_R7016.png" /></td><td>R+>70%</td></tr></table>', layer: layer_County_1},
+            {label: "Google Road", layer: layer_GoogleRoad_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: false, 
+        });
+        lay.addTo(map);
+        setBounds();
+        </script>
+    </body>
+</html>
